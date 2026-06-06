@@ -1,0 +1,32 @@
+# Build output
+build/
+backup/
+cmake-build-debug/
+assets/
+
+# CMake generated
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake
+
+# Compiled binaries
+*.o
+*.a
+*.so
+*.out
+main                        # your actual binary name
+
+# IDE
+.idea/
+.clangd/
+.cache/
+compile_commands.json
+
+# Nix
+.direnv/
+result
+
+# OS
+.DS_Store               # if you ever work on Mac
+Thumbs.db               # Windows

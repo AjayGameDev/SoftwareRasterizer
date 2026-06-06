@@ -1,0 +1,31 @@
+{
+   "version" : 3,
+
+   "configurePresets":
+   [
+
+     {
+       "name": "linux",
+       "displayName": "Linux Clang Profile",
+       "description": "Building for Linux using Clang",
+       "binaryDir": "${sourceDir}/build/linux",
+       "generator": "Ninja",
+
+
+
+      "cacheVariables":
+       {
+         "CMAKE_C_COMPILER": "/usr/bin/clang",
+         "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+         "Target_Platform": "Linux",
+         "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=/usr/bin/ld",
+         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+       }
+      
+     }
+
+
+     
+   ]
+
+}
