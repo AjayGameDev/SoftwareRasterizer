@@ -1,7 +1,12 @@
 run:
-    cmake --preset linux 
-    cmake --build build/linux 
-    ./build/linux/main
+    cmake --preset Linux 
+    cmake --build build/Linux 
+    ./build/Linux/main
+
+release:
+        cmake --preset Linux -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -march=native"
+        cmake --build build/Linux --config Release
+        ./build/Linux/main
 
 
 push message="update":

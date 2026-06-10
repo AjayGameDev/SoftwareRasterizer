@@ -5,10 +5,10 @@
    [
 
      {
-       "name": "linux",
+       "name": "Linux",
        "displayName": "Linux Clang Profile",
        "description": "Building for Linux using Clang",
-       "binaryDir": "${sourceDir}/build/linux",
+       "binaryDir": "${sourceDir}/build/Linux",
        "generator": "Ninja",
 
 

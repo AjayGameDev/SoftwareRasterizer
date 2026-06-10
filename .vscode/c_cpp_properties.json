@@ -1,0 +1,18 @@
+{
+    "configurations":
+    [
+        {
+            "name": "Linux",
+            "compileCommands": "${workspaceFolder}/build/Linux/compile_commands.json"
+        },
+        {
+            "name": "Win32",
+            "compileCommands": "${workspaceFolder}/build/Win32/compile_commands.json"
+        },
+        {
+            "name": "Android",
+            "compileCommands": "${workspaceFolder}/build/Android/compile_commands.json"
+        }
+    ],
+    "version": 4
+}
