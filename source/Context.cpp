@@ -9,16 +9,21 @@
 #include <SDL3/SDL_video.h>
 
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
-#include <stdexcept>
+#include <stdexcept> 
 
-#include "Model.h"
+#include "Model.h" 
+
+
+
 
 Context::Context()
 {
 
 }
+
 
 
 void Context::CreateWindow()
@@ -52,7 +57,94 @@ void Context::CreateRenderer()
     //}
     
 
+} 
+
+void Context::Initialize()
+{
+    colorBuffer = static_cast<uint32_t*>(std::malloc(sizeof(uint32_t) * window_width * window_height) ); 
+
+    colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
+
+    shotgun = std::make_unique<Model>();
+
+    shotgun->LoadModel("shotgun.glb");
+     
 }
+
+
+
+void Context::ProcessInput()
+{
+    SDL_Event event;
+    while(SDL_PollEvent(&event))
+    {
+        
+        if(event.type == SDL_EVENT_QUIT)
+        {
+            isRunning = false;
+            std::cout << "SDL_Quit Event happend! ";
+        }
+        /*
+        if(event.type == SDL_EVENT_KEY_DOWN)
+        {
+            isRunning = false;
+            std::cout << "Escape pressed! ";
+        }
+          */  
+    }
+
+} 
+
+
+
+void Context::Update(float dt)
+{
+
+    std::cout << "Delta time: " << static_cast<int>(1.0f/dt) << "\n";
+    rotationAngles.y   += 30.0f    * DegreeToRadians * dt;
+}
+
+
+void Context::Render()
+{
+    
+    //DrawLine(0, 0, 640*2, 480*2);
+    //Vector2 A(window_width/2.0, window_height/2.0 - 100),B(window_width/2.0 - 100, window_height/2.0 + 100),C(window_width/2.0 + 100, window_height/2.0 + 100),P4(window_width/2.0 + 200,window_height/2.0 - 100);
+    
+    Vector3 P1(0,  1,  2);   // top center
+    Vector3 P2(1,  -1, 2);   // bottom right  ← go right first (CW)
+    Vector3 P3(-1, -1, 2);   // bottom left
+
+    
+    float sinY = std::sin(rotationAngles.y);
+    float cosY = std::cos(rotationAngles.y); 
+
+    //RotateAroundZ(P1,P2,P3,sinY,cosY);
+
+    Vector2 A = ProjectPoint(P1);
+    Vector2 B = ProjectPoint(P2);
+    Vector2 C = ProjectPoint(P3);
+
+    //std::cout << "A: " << A.x << ", " << A.y << "\n";
+    //std::cout << "B: " << B.x << ", " << B.y << "\n";
+    //std::cout << "C: " << C.x << ", " << C.y << "\n";
+
+    //DrawFilledTriangle(A,B,C,0xFF000000);
+    //DrawTriangle(A,B,C); 
+    //DrawTriangle(A,C,P4); 
+    
+    if(shotgun)
+        RenderModel(*shotgun);
+
+    RenderColorBuffer(); // upload buffer data to final texture or gpu
+    SDL_RenderPresent(renderer); // preset data to the screen
+
+    ClearColorBuffer(0xFFFFFFDD); // now clear the buffer 
+    
+
+} 
+
+
 
 void Context::DrawPixel(uint32_t x, uint32_t y, uint32_t color)
 {
@@ -168,9 +260,9 @@ void Context::DrawTriangle(int x1,int y1,int x2, int y2, int x3, int y3)
     DrawLine(x3, y3, x1, y1);
 } 
 
-void Context::DrawTriangle(Vector2 P1,Vector2 P2,Vector2 P3)
+void Context::DrawTriangle(Vector2 A,Vector2 B,Vector2 C)
 {
-    DrawTriangle(P1.x,P1.y,P2.x,P2.y,P3.x,P3.y);
+    DrawTriangle(A.x,A.y,B.x,B.y,C.x,C.y);
 }
 
 
@@ -180,39 +272,16 @@ void Context::RenderColorBuffer()
     SDL_RenderTexture(renderer,colorBufferTexture,nullptr,nullptr);
 }
 
-void Context::Initialize()
+
+
+bool IsTopLeftEdge(Vector2_int32& edge)
 {
-    colorBuffer = static_cast<uint32_t*>(std::malloc(sizeof(uint32_t) * window_width * window_height) ); 
-
-    colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
-
-
+    bool isTopEdge  = (edge.y == 0) && (edge.x > 0);
+    bool isLeftEdge = edge.y < 0;
     
+    return isTopEdge || isLeftEdge; 
 }
 
-
-
-void Context::ProcessInput()
-{
-    SDL_Event event;
-    while(SDL_PollEvent(&event))
-    {
-        
-        if(event.type == SDL_EVENT_QUIT)
-        {
-            isRunning = false;
-            std::cout << "SDL_Quit Event happend! ";
-        }
-        /*
-        if(event.type == SDL_EVENT_KEY_DOWN)
-        {
-            isRunning = false;
-            std::cout << "Escape pressed! ";
-        }
-          */  
-    }
-
-} 
 
 bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vector2& BC, Vector2& CA)
 {
@@ -220,7 +289,8 @@ bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vec
     Vector2 AP = P - A; 
     Vector2 BP = P - B; 
     Vector2 CP = P - C; 
-    
+
+   
     if(CrossProduct(AB,AP) < 0 )
         return false;
 
@@ -228,82 +298,100 @@ bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vec
         return false;
 
     if(CrossProduct(CA,CP) < 0 )
-        return false; 
-
+        return false;
     return true;
 
     
 }
 
-// Pineda's alogrithm
-void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3)
-{
-    int xmin = min(P1.x,P2.x,P3.x); 
-    int ymin = min(P1.y,P2.y,P3.y); 
 
-    int xmax = max(P1.x,P2.x,P3.x);
-    int ymax = max(P1.y,P2.y,P3.y); 
+
+void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color) // Pineda's alogrithm
+{
+
+    Vector2_int32 A(ConvertToFixedPoint(P1.x),ConvertToFixedPoint(P1.y));
+    Vector2_int32 B(ConvertToFixedPoint(P2.x),ConvertToFixedPoint(P2.y));
+    Vector2_int32 C(ConvertToFixedPoint(P3.x),ConvertToFixedPoint(P3.y));
+
+    Vector2_int32 AB = B - A; 
+    Vector2_int32 BC = C - B; 
+    Vector2_int32 CA = A - C; 
+
+
+    Vector2_int32 AC = C - A;
+    // area of triangle can be calculated using cross product of edges from same vertex
+    // for ABC triangle clockwise AB cross AC will give area of entire triangle
+    int64_t area = CrossProduct_int64(AB,AC);
+        if(area <= 0)
+            return;
+
+    // calculating bounding box that covers the triangle
+
+    int32_t xmin = min_int32(A.x,B.x,C.x) >> subpixelShift;  // 2.3 = floor  2  ceiling  3
+    int32_t ymin = min_int32(A.y,B.y,C.y) >> subpixelShift; // -2.3 = floor -3  ceiling -2
+
+    int32_t xmax = (max_int32(A.x,B.x,C.x) + subpixelMultiplier - 1) >> subpixelShift;
+    int32_t ymax = (max_int32(A.y,B.y,C.y) + subpixelMultiplier - 1) >> subpixelShift; 
+
+    // limiting bounding box to the edges of the screen
 
     xmin = max(0,xmin);
     ymin = max(0,ymin);
-    xmax = min(xmax,window_width - 1);
+    xmax = min(xmax,window_width  - 1);
     ymax = min(ymax,window_height - 1); 
 
-    Vector2 P1P2 = P2 - P1; 
-    Vector2 P2P3 = P3 - P2; 
-    Vector2 P3P1 = P1 - P3;
+    
 
-    for (int y = ymin; y <= ymax; y++) 
+     int32_t bias0 = IsTopLeftEdge(AB) ? 0 : -1; 
+     int32_t bias1 = IsTopLeftEdge(BC) ? 0 : -1; 
+     int32_t bias2 = IsTopLeftEdge(CA) ? 0 : -1; 
+
+    for (int32_t y = ymin; y <= ymax; y++)  // traversing all pixels inside the bounding box
     {
-        for (int x = xmin; x <= xmax; x++) 
+        for (int32_t x = xmin; x <= xmax; x++) 
         {
-            Vector2 P(x,y);
+            Vector2_int32 P(x * subpixelMultiplier + half ,y * subpixelMultiplier + half); 
 
-            if(InsideTriangle(P,P1,P2,P3,P1P2,P2P3,P3P1))
-                DrawPixel(x,y,0xFF00FFFF);
+            Vector2_int32 AP = P - A; 
+            Vector2_int32 BP = P - B; 
+            Vector2_int32 CP = P - C; 
+
+            int64_t w0 = CrossProduct_int64(AB,AP) + bias0;
+            int64_t w1 = CrossProduct_int64(BC,BP) + bias1;
+            int64_t w2 = CrossProduct_int64(CA,CP) + bias2;  
+
+            
+            
+
+            
+
+
+            if(w0 >= 0 && w1 >= 0 && w2 >= 0)
+            {
+                
+                 // alpha beta and gamma are barycentric co-ordinates that can be used to interpolate values between vertices like uvs
+                //  basically alpha * A + beta * B + gamma * C
+                float alpha  = static_cast<float>(w0) / static_cast<float>(area);   // area of triangle ABP) / area of entire triangle ABC
+                float beta   = static_cast<float>(w1) / static_cast<float>(area);  //  area of triangle BCP) / area of entire triangle ABC
+                float gamma  = static_cast<float>(w2) / static_cast<float>(area); //   area of triangle CAP) / area of entire triangle ABC
+                
+                uint8_t r = (uint8_t)(255 * alpha + 0   * beta + 0   * gamma);
+                uint8_t g = (uint8_t)(0   * alpha + 255 * beta + 0   * gamma);
+                uint8_t b = (uint8_t)(0   * alpha + 0   * beta + 255 * gamma);
+                
+                //color = 0xFF000000 | (r << 16) | (g << 8) | b;
+                DrawPixel(x,y,color);
+            }
         }
     }
 }
 
-void Context::Update(float dt)
-{
 
-    
-}
-
-
-void Context::Render()
-{
-    
-    //DrawLine(0, 0, 640*2, 480*2);
-    //Vector2 P1(window_width/2.0, window_height/2.0 - 100),P2(window_width/2.0 - 100, window_height/2.0 + 100),P3(window_width/2.0 + 100, window_height/2.0 + 100),P4(window_width/2.0 + 200,window_height/2.0 - 100);
-    
-    Vector3 A(0,  1,  2);   // top center
-    Vector3 B(1,  -1, 2);   // bottom right  ← go right first (CW)
-    Vector3 C(-1, -1, 2);   // bottom left
-
-
-    Vector2 P1 = ProjectPoint(A);
-    Vector2 P2 = ProjectPoint(B);
-    Vector2 P3 = ProjectPoint(C);
-
-    //std::cout << "P1: " << P1.x << ", " << P1.y << "\n";
-    //std::cout << "P2: " << P2.x << ", " << P2.y << "\n";
-    //std::cout << "P3: " << P3.x << ", " << P3.y << "\n";
-
-    //DrawFilledTriangle(P1,P2,P3);
-    //DrawTriangle(P1,P2,P3); 
-    //DrawTriangle(P1,P3,P4); 
-    RenderColorBuffer();
-    ClearColorBuffer(0xFFFFFFDD); 
-
-    SDL_RenderPresent(renderer);
-} 
 
 void Context::RenderModel(Model& model,float scale)
 {
     
-    rotationAngles.y   += 0.4f    * DegreeToRadians;
+    //rotationAngles.y   += 0.4f    * DegreeToRadians * dt;
     float sinY = std::sin(rotationAngles.y);
     float cosY = std::cos(rotationAngles.y);
     //rotationAngles.x    = 180.0f  * DegreeToRadians;
@@ -371,37 +459,33 @@ void Context::RenderModel(Model& model,float scale)
 
         
         
-        Vector2 P1 = ProjectPoint(vertex1);
-        Vector2 P2 = ProjectPoint(vertex2);
-        Vector2 P3 = ProjectPoint(vertex3);  
+        Vector2 A = ProjectPoint(vertex1);
+        Vector2 B = ProjectPoint(vertex2);
+        Vector2 C = ProjectPoint(vertex3);  
         
         // use back face culling here for better performance
+   
         
-        Vector2 P1P2 = P2-P1;
-        Vector2 P1P3 = P3-P1; 
         
-        float area = CrossProduct(P1P2,P1P3);
-        if(area <= 0)
-            continue;
         
-        DrawFilledTriangle(P1, P2, P3);
+        DrawFilledTriangle(A, B, C);
 
         // this is way too aggressive and culls even if some of it is on screen
 
-        //if(P1.x<0 || P1.y<0 || P1.x >= window_width || P1.y >= window_height)
+        //if(A.x<0 || A.y<0 || A.x >= window_width || A.y >= window_height)
         //    continue;
-        //if(P2.x<0 || P2.y<0 || P2.x >= window_width || P2.y >= window_height)
+        //if(B.x<0 || B.y<0 || B.x >= window_width || B.y >= window_height)
         //    continue;
-        //if(P3.x<0 || P3.y<0 || P3.x >= window_width || P3.y >= window_height)
+        //if(C.x<0 || C.y<0 || C.x >= window_width || C.y >= window_height)
         //    continue;
 
 
-       //if(P1.x < 0 && P2.x < 0 && P3.x < 0) continue;  
-       //if(P1.y < 0 && P2.y < 0 && P3.y < 0) continue; 
-       //if(P1.x > window_width && P2.x > window_width && P3.x > window_width) continue;
-       //if(P1.y > window_height && P2.y > window_height && P3.y > window_height) continue; 
+       //if(A.x < 0 && B.x < 0 && C.x < 0) continue;  
+       //if(A.y < 0 && B.y < 0 && C.y < 0) continue; 
+       //if(A.x > window_width && B.x > window_width && C.x > window_width) continue;
+       //if(A.y > window_height && B.y > window_height && C.y > window_height) continue; 
         
-        //DrawTriangle(P1,P2,P3);
+        //DrawTriangle(A,B,C);
     }
 
    
@@ -415,7 +499,7 @@ Vector2 Context::ProjectPoint(Vector3 point)
     // perspective divide
     projectedPoint.x = (point.x  * camera.focalLength) / point.z + (window_width   / 2.0f) ;
 
-    // Negate it to 
+    // Negate it to match +y up from 3d space to +y in screen space otherwise image will be upside down
     projectedPoint.y = -(point.y  * camera.focalLength) / point.z + (window_height / 2.0f) ;
     
     return projectedPoint;
@@ -438,3 +522,4 @@ void Context::Cleanup()
 
 
 
+Context::~Context() = default;

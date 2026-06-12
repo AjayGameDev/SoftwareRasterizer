@@ -7,12 +7,17 @@
 #include <assimp/mesh.h>
 
 
+Model::Model()
+{
+
+}
+
 Model::Model(std::string modelName)
 {
     LoadModel(modelName);
 }
 
-void Model::LoadModel(std::string& modelName)
+void Model::LoadModel(std::string modelName)
 {
     std::string path = FileManager::GetLocation(FileManager::Location::Model) + modelName; 
 

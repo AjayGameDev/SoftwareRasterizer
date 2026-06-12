@@ -56,6 +56,27 @@ void RotateAroundY(Vector3& inputVector1,Vector3& inputVector2,Vector3& inputVec
     inputVector3 = rotatedVector3;
 }
 
+void RotateAroundZ(Vector3& inputVector1,Vector3& inputVector2,Vector3& inputVector3,float sinAngle,float cosAngle)
+{
+    Vector3 rotatedVector1,rotatedVector2,rotatedVector3; 
+
+    rotatedVector1.x = inputVector1.x * cosAngle - inputVector1.y * sinAngle;
+    rotatedVector1.y = inputVector1.y * cosAngle + inputVector1.x * sinAngle;
+    rotatedVector1.z = inputVector1.z;
+
+    rotatedVector2.x = inputVector2.x * cosAngle - inputVector2.y * sinAngle;
+    rotatedVector2.y = inputVector2.y * cosAngle + inputVector2.x * sinAngle;
+    rotatedVector2.z = inputVector2.z;
+
+    rotatedVector3.x = inputVector3.x * cosAngle - inputVector3.y * sinAngle;
+    rotatedVector3.y = inputVector3.y * cosAngle + inputVector3.x * sinAngle;
+    rotatedVector3.z = inputVector3.z;
+
+    inputVector1 = rotatedVector1;
+    inputVector2 = rotatedVector2;
+    inputVector3 = rotatedVector3;
+}
+
 
 // for left handed system, we calculate triangle normal with
 // Vector3 edge1 = B - A; // A->B

@@ -22,8 +22,9 @@ class Model
             std::vector<Vertex> vertices; 
             std::vector<uint32_t> indices;
 
+            Model();
             Model(std::string modelName);
-            void LoadModel(std::string& modelName);
+            void LoadModel(std::string modelName);
 };  
 
 

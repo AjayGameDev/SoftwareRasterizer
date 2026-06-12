@@ -1,14 +1,13 @@
 #include "Context.h"
 #include "Maths.h"
 #include "GameTime.h"
-#include "Model.h"
 #include <cmath>
-#include <iostream>
+
 
 int main()
 {
     
-    Model shotgun("shotgun.glb");
+    
     GameTime time;
 
     Context context;
@@ -24,11 +23,10 @@ int main()
     while(context.IsRunning())
     {
         time.Update();
+        
         context.ProcessInput();
         context.Update(time.deltaTime);
-        std::cout << "Delta time: " << static_cast<int>(1.0f/time.deltaTime) << "\n";
         context.Render();
-        context.RenderModel(shotgun);
     } 
 
     context.Cleanup();
