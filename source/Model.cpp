@@ -5,7 +5,9 @@
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
 #include <assimp/mesh.h>
+#include <cstdint>
 
+#include <iostream>
 
 Model::Model()
 {
@@ -21,9 +23,9 @@ void Model::LoadModel(std::string modelName)
 {
     std::string path = FileManager::GetLocation(FileManager::Location::Model) + modelName; 
 
-    Assimp::Importer importer;
+    Assimp::Importer importer; 
 
-    const aiScene* scene = importer.ReadFile(path,aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_GenNormals);
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals);
 
     if(!scene || !scene->mRootNode || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
     {
@@ -32,6 +34,9 @@ void Model::LoadModel(std::string modelName)
     }
 
     unsigned int numberOfMeshes = scene->mNumMeshes;
+    std::cout << "\nNumber of meshes  " << numberOfMeshes;
+
+    uint32_t vertexOffset = 0;
     
     for (int i = 0; i<numberOfMeshes; i++) 
     {
@@ -42,6 +47,7 @@ void Model::LoadModel(std::string modelName)
         bool hasTangent      = mesh->HasTangentsAndBitangents();
 
         unsigned int numberOfVertices = mesh->mNumVertices;
+        std::cout << "\nNumber of vertices  " << numberOfVertices;
 
         for (int j = 0; j<numberOfVertices; j++) 
         {
@@ -60,16 +66,20 @@ void Model::LoadModel(std::string modelName)
         }
 
         unsigned int numberOfFaces = mesh->mNumFaces; 
+        std::cout << "\nNumber of faces  " << numberOfFaces;
 
         for (int j = 0; j<numberOfFaces; j++) 
         {
             aiFace face = mesh->mFaces[j]; 
 
+
             for (int k=0; k<3; k++)
             {
-                indices.push_back(face.mIndices[k]);
+                indices.push_back(face.mIndices[k] + vertexOffset);
             }
-        }
+        } 
+
+        vertexOffset += numberOfVertices;
 
     }
     

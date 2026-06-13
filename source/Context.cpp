@@ -19,10 +19,7 @@
 
 
 
-Context::Context()
-{
-
-}
+Context::Context() {}
 
 
 
@@ -32,7 +29,7 @@ void Context::CreateWindow()
     if(SDL_Init(SDL_INIT_VIDEO) == false)
         throw std::runtime_error("Can't initialize SDL!");
 
-    window = SDL_CreateWindow("Software Rasterizer", window_width * 2 , window_height * 2, 0);     
+    window = SDL_CreateWindow("Software Rasterizer", window_width , window_height, 0);     
     
     if(!window)
         throw std::runtime_error("Can't create it! ");
@@ -61,20 +58,32 @@ void Context::CreateRenderer()
 
 void Context::Initialize()
 {
-    colorBuffer = static_cast<uint32_t*>(std::malloc(sizeof(uint32_t) * window_width * window_height) ); 
+    colorBuffer = static_cast<uint32_t*>(std::malloc(sizeof(uint32_t) * window_width * window_height)); 
+    depthBuffer = static_cast<float*>(std::malloc(sizeof(float) * window_width * window_height));
 
     colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
 
     shotgun = std::make_unique<Model>();
 
-    shotgun->LoadModel("shotgun.glb");
+    shotgun->LoadModel("hands.glb");
+
+    camera.position = Vector3(0,0,-0.6f);
+    camera.fov = 90 * DegreeToRadians; 
+    camera.focalLength = (window_width / 2.0f) / std::tan(camera.fov / 2.0f);  
+    camera.nearPlane = 0.01f;
      
+    input.targetDistance = camera.position.z; 
+
+
+
 }
 
 
 
 void Context::ProcessInput()
 {
+    input.deltaX = input.deltaY = 0;
+
     SDL_Event event;
     while(SDL_PollEvent(&event))
     {
@@ -82,15 +91,24 @@ void Context::ProcessInput()
         if(event.type == SDL_EVENT_QUIT)
         {
             isRunning = false;
-            std::cout << "SDL_Quit Event happend! ";
+            std::cout << "\nSDL_Quit Event happend! ";
         }
-        /*
-        if(event.type == SDL_EVENT_KEY_DOWN)
+        
+
+        if (event.type == SDL_EVENT_MOUSE_MOTION) 
         {
-            isRunning = false;
-            std::cout << "Escape pressed! ";
+          input.deltaX += event.motion.xrel * 100;
+          input.deltaY += event.motion.yrel * 100;
         }
-          */  
+
+        if (event.type == SDL_EVENT_MOUSE_WHEEL) 
+        {
+          if (event.wheel.y > 0)
+            input.targetDistance += .1f;
+
+          else if (event.wheel.y < 0)
+            input.targetDistance -= .1f;
+        }
     }
 
 } 
@@ -100,8 +118,10 @@ void Context::ProcessInput()
 void Context::Update(float dt)
 {
 
-    std::cout << "Delta time: " << static_cast<int>(1.0f/dt) << "\n";
-    rotationAngles.y   += 30.0f    * DegreeToRadians * dt;
+    //std::cout << "Delta time: " << static_cast<int>(1.0f/dt) << "\n";
+    rotationAngles.y   += input.deltaX * DegreeToRadians * dt; 
+    rotationAngles.x   += input.deltaY * DegreeToRadians * dt; 
+    camera.position.z  = input.targetDistance;
 }
 
 
@@ -140,7 +160,7 @@ void Context::Render()
     SDL_RenderPresent(renderer); // preset data to the screen
 
     ClearColorBuffer(0xFFFFFFDD); // now clear the buffer 
-    
+    ClearDepthBuffer();
 
 } 
 
@@ -160,6 +180,19 @@ void Context::ClearColorBuffer(uint32_t color)
         {
 
             colorBuffer[window_width * y + x] = color;
+            //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
+        }
+    }
+}
+
+void Context::ClearDepthBuffer(float depthValue)
+{
+    for (int y = 0; y < window_height; y++) 
+    {
+        for (int x = 0; x < window_width; x++) 
+        {
+
+            depthBuffer[window_width * y + x] = depthValue;
             //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
         }
     }
@@ -306,7 +339,7 @@ bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vec
 
 
 
-void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color) // Pineda's alogrithm
+void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,float z1,float z2,float z3,Vector3 normal1,Vector3 normal2,Vector3 normal3,uint32_t color) // Pineda's alogrithm
 {
 
     Vector2_int32 A(ConvertToFixedPoint(P1.x),ConvertToFixedPoint(P1.y));
@@ -322,8 +355,8 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color
     // area of triangle can be calculated using cross product of edges from same vertex
     // for ABC triangle clockwise AB cross AC will give area of entire triangle
     int64_t area = CrossProduct_int64(AB,AC);
-        if(area <= 0)
-            return;
+    if(area <= 0)
+       return;
 
     // calculating bounding box that covers the triangle
 
@@ -345,6 +378,16 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color
      int32_t bias0 = IsTopLeftEdge(AB) ? 0 : -1; 
      int32_t bias1 = IsTopLeftEdge(BC) ? 0 : -1; 
      int32_t bias2 = IsTopLeftEdge(CA) ? 0 : -1; 
+
+     float inv_zA = 1.0f / z1;
+     float inv_zB = 1.0f / z2;
+     float inv_zC = 1.0f / z3;
+
+    Vector3 lightDirection(0,0,-1); 
+    normal1 = normal1 * inv_zA;
+    normal2 = normal2 * inv_zB;
+    normal3 = normal3 * inv_zC;
+
 
     for (int32_t y = ymin; y <= ymax; y++)  // traversing all pixels inside the bounding box
     {
@@ -373,14 +416,38 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color
                 //  basically alpha * A + beta * B + gamma * C
                 float alpha  = static_cast<float>(w0) / static_cast<float>(area);   // area of triangle ABP) / area of entire triangle ABC
                 float beta   = static_cast<float>(w1) / static_cast<float>(area);  //  area of triangle BCP) / area of entire triangle ABC
-                float gamma  = static_cast<float>(w2) / static_cast<float>(area); //   area of triangle CAP) / area of entire triangle ABC
+                float gamma  = static_cast<float>(w2) / static_cast<float>(area); //   area of triangle CAP) / area of entire triangle ABC 
+
+                float interpolated_z = alpha * inv_zA + beta * inv_zB + gamma * inv_zC;
+                interpolated_z = 1.0f / interpolated_z;
+
+                Vector3 interpolated_normal = normal1 * alpha + normal2 * beta + normal3 * gamma; 
+                interpolated_normal = interpolated_normal * interpolated_z; 
+                float len = std::sqrt(interpolated_normal.x * interpolated_normal.x +
+                                         interpolated_normal.y * interpolated_normal.y +
+                                         interpolated_normal.z * interpolated_normal.z);
+                if(len > 0.0001f)
+                    interpolated_normal = interpolated_normal / len; 
+
+                float diffuse = max(DotProduct(interpolated_normal,lightDirection),0);  
+                //float ambient = 0.15f;
+                //diffuse = ambient + (1.0f - ambient) * diffuse;  
+                uint8_t shade = (uint8_t)(diffuse * 255.0f);
+                color = 0xFF000000 | (shade << 16) | (shade << 8) | shade;
+               
+                int32_t index = y * window_width + x;
                 
-                uint8_t r = (uint8_t)(255 * alpha + 0   * beta + 0   * gamma);
-                uint8_t g = (uint8_t)(0   * alpha + 255 * beta + 0   * gamma);
-                uint8_t b = (uint8_t)(0   * alpha + 0   * beta + 255 * gamma);
+                if(interpolated_z < depthBuffer[index])
+                {
+                    uint8_t r = (uint8_t)(255 * alpha + 0   * beta + 0   * gamma);
+                    uint8_t g = (uint8_t)(0   * alpha + 255 * beta + 0   * gamma);
+                    uint8_t b = (uint8_t)(0   * alpha + 0   * beta + 255 * gamma);
+            
+                    //color = 0xFF000000 | (r << 16) | (g << 8) | b; 
+                    depthBuffer[index] = interpolated_z;
+                    DrawPixel(x,y,color);
+                }
                 
-                //color = 0xFF000000 | (r << 16) | (g << 8) | b;
-                DrawPixel(x,y,color);
             }
         }
     }
@@ -434,30 +501,36 @@ void Context::RenderModel(Model& model,float scale)
         Vector3 vertex2 = model.vertices[index2].position;
         Vector3 vertex3 = model.vertices[index3].position; 
 
+        Vector3 normal1 = model.vertices[index1].normal;
+        Vector3 normal2 = model.vertices[index2].normal;
+        Vector3 normal3 = model.vertices[index3].normal; 
+
+
         vertex1 *=  scale;
         vertex2 *=  scale;
         vertex3 *=  scale;
 
-        //vertex1 = RotateAroundX(vertex1, rotationAngles.x);
-        //vertex1 = RotateAroundY(vertex1, rotationAngles.y);
 
-        //vertex2 = RotateAroundX(vertex2, rotationAngles.x);
-        //vertex2 = RotateAroundY(vertex2, rotationAngles.y);
-
-        //vertex3 = RotateAroundX(vertex3, rotationAngles.x);
-        //vertex3 = RotateAroundY(vertex3, rotationAngles.y);
 
         RotateAroundY(vertex1,vertex2,vertex3,sinY,cosY);
+        //RotateAroundX(vertex1,vertex2,vertex3,sinY,cosY);
+
+        RotateAroundY(normal1,normal2,normal3,sinY,cosY);
+        //RotateAroundX(normal1,normal2,normal3,sinY,cosY);
 
         vertex1.z -= camera.position.z;
         vertex2.z -= camera.position.z;
         vertex3.z -= camera.position.z;
         
-        if(vertex1.z <= 0.0f || vertex2.z <= 0.0f || vertex3.z <= 0.0f)
+        if(vertex1.z <= camera.nearPlane || vertex2.z <= camera.nearPlane || vertex3.z <= camera.nearPlane)
             continue;
 
+        //Vector3 faceNormal = normal1 / 3.0f + normal2 / 3.0f + normal3 / 3.0f;
+        //Vector3 lightDirection(0,0,-1);
+        //float diffuse = max(DotProduct(faceNormal,lightDirection),0);
 
-        
+        //uint8_t shade = (uint8_t)(diffuse * 255.0f);
+        //uint32_t color = 0xFF000000 | (shade << 16) | (shade << 8) | shade;
         
         Vector2 A = ProjectPoint(vertex1);
         Vector2 B = ProjectPoint(vertex2);
@@ -465,27 +538,16 @@ void Context::RenderModel(Model& model,float scale)
         
         // use back face culling here for better performance
    
-        
-        
-        
-        DrawFilledTriangle(A, B, C);
+        Vector2 AB = B - A;
+        Vector2 AC = C - A;
 
-        // this is way too aggressive and culls even if some of it is on screen
-
-        //if(A.x<0 || A.y<0 || A.x >= window_width || A.y >= window_height)
-        //    continue;
-        //if(B.x<0 || B.y<0 || B.x >= window_width || B.y >= window_height)
-        //    continue;
-        //if(C.x<0 || C.y<0 || C.x >= window_width || C.y >= window_height)
-        //    continue;
-
-
-       //if(A.x < 0 && B.x < 0 && C.x < 0) continue;  
-       //if(A.y < 0 && B.y < 0 && C.y < 0) continue; 
-       //if(A.x > window_width && B.x > window_width && C.x > window_width) continue;
-       //if(A.y > window_height && B.y > window_height && C.y > window_height) continue; 
+        float area = CrossProduct(AB,AC);
+        if(area <= 0)
+            continue;
         
-        //DrawTriangle(A,B,C);
+
+        DrawFilledTriangle(A, B, C,vertex1.z,vertex2.z,vertex3.z,normal1,normal2,normal3);
+
     }
 
    
@@ -513,7 +575,7 @@ void Context::Cleanup()
 
     // clear everything in reverse order
     std::free(colorBuffer);
-
+    std::free(depthBuffer); 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit(); 

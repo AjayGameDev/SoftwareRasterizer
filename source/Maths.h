@@ -42,6 +42,11 @@ struct Vector3
         return Vector3(this->x * value,this->y * value,this->z * value);
     }
 
+    Vector3 operator/(float value)
+    {
+        return Vector3(this->x / value,this->y / value,this->z / value);
+    }
+
     Vector3& operator*=(float value)
     {
         this->x *= value;
@@ -87,6 +92,11 @@ struct Vector2
     Vector2 operator*(float value)
     {
         return Vector2(this->x * value,this->y * value);
+    }
+
+    Vector2 operator/(float value)
+    {
+        return Vector2(this->x / value,this->y / value);
     }
 
     Vector2& operator*=(float value)
@@ -148,6 +158,7 @@ struct Camera
 {
     Vector3 position;
     Vector3 rotation;
+    float nearPlane;
     float fov; 
     float focalLength;
 }; 
@@ -157,6 +168,7 @@ Vector3 RotateAroundZ(Vector3& inputVector,float angle);
 Vector3 RotateAroundX(Vector3& inputVector,float angle);
 Vector3 RotateAroundY(Vector3& inputVector,float angle); 
 
+void RotateAroundX(Vector3& inputVector1,Vector3& inputVector2,Vector3& inputVector3,float sinAngle,float cosAngle);
 void RotateAroundY(Vector3& inputVector1,Vector3& inputVector2,Vector3& inputVector3,float sinAngle,float cosAngle);
 void RotateAroundZ(Vector3& inputVector1,Vector3& inputVector2,Vector3& inputVector3,float sinAngle,float cosAngle);
 
