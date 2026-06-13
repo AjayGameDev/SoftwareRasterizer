@@ -65,7 +65,7 @@ void Context::Initialize()
 
     shotgun = std::make_unique<Model>();
 
-    shotgun->LoadModel("hands.glb");
+    shotgun->LoadModel("shotgun.glb");
 
     camera.position = Vector3(0,0,-0.6f);
     camera.fov = 90 * DegreeToRadians; 
