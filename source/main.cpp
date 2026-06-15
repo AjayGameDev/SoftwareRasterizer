@@ -1,7 +1,5 @@
 #include "Context.h"
-#include "Maths.h"
 #include "GameTime.h"
-#include <cmath>
 
 
 int main()

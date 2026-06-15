@@ -110,40 +110,30 @@ struct Vector2
 
 struct Vector2_int32
 {
-    int32_t x,y;
+    int32_t x = 0, y = 0;
 
-    Vector2_int32() 
-    { 
-        x = y = 0; 
-    }
+    constexpr Vector2_int32() noexcept = default;
 
-    Vector2_int32(int32_t value)
-    {
-        x = y = value;
-    }
+    constexpr explicit Vector2_int32(int32_t value) noexcept : x(value),y(value) {}
 
-    Vector2_int32(int32_t x,int32_t y) 
-    {
-        this->x = x;
-        this->y = y;
-    }
+    constexpr Vector2_int32(int32_t x,int32_t y) noexcept : x(x),y(y) {}
 
-    Vector2_int32 operator+(Vector2_int32 other)
+    constexpr Vector2_int32 operator+(const Vector2_int32& other) const noexcept
     {
         return Vector2_int32(this->x+other.x,this->y+other.y);
     } 
 
-    Vector2_int32 operator-(Vector2_int32 other)
+    constexpr Vector2_int32 operator-(const Vector2_int32& other) const noexcept
     {
         return Vector2_int32(this->x-other.x,this->y-other.y);
     }
 
-    Vector2_int32 operator*(int32_t value)
+    constexpr Vector2_int32 operator*(int32_t value) const noexcept
     {
         return Vector2_int32(this->x * value,this->y * value);
     }
 
-    Vector2_int32& operator*=(int32_t value)
+    constexpr Vector2_int32& operator*=(int32_t value) noexcept
     {
         this->x *= value;
         this->y *= value;
