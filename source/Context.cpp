@@ -8,6 +8,7 @@
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_video.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -63,14 +64,16 @@ void Context::Initialize()
 
     colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
 
-    shotgun = std::make_unique<Model>();
+    shotgun = std::make_unique<Model>(); 
+    hands   = std::make_unique<Model>();
 
-    shotgun->LoadModel("hands.glb");
+    shotgun->LoadModel("shotgun.glb");
+    hands->LoadModel("hands.glb");
 
     camera.position = Vector3(0,0,-0.6f);
     camera.fov = 90 * DegreeToRadians; 
     camera.focalLength = (window_width / 2.0f) / std::tan(camera.fov / 2.0f);  
-    camera.nearPlane = 0.01f;
+    camera.nearPlane = 0.1f;
      
     input.targetDistance = camera.position.z; 
 
@@ -159,6 +162,8 @@ void Context::Render()
     
     if(shotgun)
         RenderModel(*shotgun);
+    if(hands)
+        RenderModel(*hands);
 
     RenderColorBuffer(); // upload buffer data to final texture or gpu
     SDL_RenderPresent(renderer); // preset data to the screen
@@ -177,28 +182,30 @@ void Context::DrawPixel(uint32_t x, uint32_t y, uint32_t color)
 
 void Context::ClearColorBuffer(uint32_t color)
 {
-    for (int y = 0; y < window_height; y++) 
-    {
-        for (int x = 0; x < window_width; x++) 
-        {
-
-            colorBuffer[window_width * y + x] = color;
-            //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
-        }
-    }
+    //for (int y = 0; y < window_height; y++) 
+    //{
+    //    for (int x = 0; x < window_width; x++) 
+    //    {
+//
+    //        colorBuffer[window_width * y + x] = color;
+    //        //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
+    //    }
+    //} 
+    std::fill(colorBuffer,colorBuffer + window_width * window_height,color);
 }
 
 void Context::ClearDepthBuffer(float depthValue)
 {
-    for (int y = 0; y < window_height; y++) 
-    {
-        for (int x = 0; x < window_width; x++) 
-        {
-
-            depthBuffer[window_width * y + x] = depthValue;
-            //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
-        }
-    }
+    //for (int y = 0; y < window_height; y++) 
+    //{
+    //    for (int x = 0; x < window_width; x++) 
+    //    {
+//
+    //        depthBuffer[window_width * y + x] = depthValue;
+    //        //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
+    //    }
+    //}
+    std::fill(depthBuffer,depthBuffer + window_width * window_height,depthValue);
 }
 
 void Context::DrawGrid()
@@ -342,7 +349,7 @@ bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vec
 
 
 
-void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,float z1,float z2,float z3,Vector3 normal1,Vector3 normal2,Vector3 normal3,uint32_t color) // Pineda's alogrithm
+void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,float z2,float z3,Vector3 normal1,Vector3 normal2,Vector3 normal3,uint32_t color) // Pineda's alogrithm
 {
 
     Vector2_int32 A(ConvertToFixedPoint(P1.x),ConvertToFixedPoint(P1.y));
@@ -360,6 +367,8 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,float z1,float
     int64_t area = CrossProduct_int64(AB,AC);
     if(area <= 0)
        return;
+
+    float inverse_area = 1.0 / static_cast<float>(area);
 
     // calculating bounding box that covers the triangle
 
@@ -382,13 +391,15 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,float z1,float
      int32_t bias1 = IsTopLeftEdge(BC) ? 0 : -1; 
      int32_t bias2 = IsTopLeftEdge(CA) ? 0 : -1; 
 
-    float inv_zA = 1.0f / z1;
-    float inv_zB = 1.0f / z2;
-    float inv_zC = 1.0f / z3;
+    float inverse_zA = 1.0f / z1;
+    float inverse_zB = 1.0f / z2;
+    float inverse_zC = 1.0f / z3;
 
-    normal1 = normal1 * inv_zA;
-    normal2 = normal2 * inv_zB;
-    normal3 = normal3 * inv_zC;
+    normal1 = normal1 * inverse_zA;
+    normal2 = normal2 * inverse_zB;
+    normal3 = normal3 * inverse_zC;
+
+    Vector3 lightDirection(0,0,-1);
 
 
     for (int32_t y = ymin; y <= ymax; y++)  // traversing all pixels inside the bounding box
@@ -416,24 +427,28 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,float z1,float
                 
                  // alpha beta and gamma are barycentric co-ordinates that can be used to interpolate values between vertices like uvs
                 //  basically alpha * A + beta * B + gamma * C
-                float alpha  = static_cast<float>(w1) / static_cast<float>(area);   // area of triangle ABP) / area of entire triangle ABC
-                float beta   = static_cast<float>(w2) / static_cast<float>(area);  //  area of triangle BCP) / area of entire triangle ABC
-                float gamma  = static_cast<float>(w0) / static_cast<float>(area); //   area of triangle CAP) / area of entire triangle ABC 
+                float alpha  = static_cast<float>(w1) * inverse_area;   // area of triangle opposite to A(BCP) / area of entire triangle ABC
+                float beta   = static_cast<float>(w2) * inverse_area;  //  area of triangle opposite to B(CAP) / area of entire triangle ABC
+                float gamma  = static_cast<float>(w0) * inverse_area; //   area of triangle opposite to C(ABP) / area of entire triangle ABC 
 
                 
-                
-                float interpolated_z = alpha * inv_zA + beta * inv_zB + gamma * inv_zC;
-                interpolated_z = 1.0f / interpolated_z;
+                // screen space is non linear due to perspective projection ie division by z and not projection matrix so interpolating linear attributes like uv,color,normals will result in incorrect ps1 style result
+                // z and attribute are not linear but 1/z and attribute/z are, so basically we want (interpolated 1/z) =  alpha * 1/z1 + beta * 1/z2 + gamma * 1/z3 and interpolated z = 1 / (interpolated 1/z) 
+                // interpolated attribute A = interpolated(A/z) / interpolaterd (1/z) = interpolated(A/z) * interpolated(z)
+
+                float interpolated_inverse_z = alpha * inverse_zA + beta * inverse_zB + gamma * inverse_zC;
+                float interpolated_z = 1.0f / interpolated_inverse_z;
 
                 Vector3 interpolated_normal = normal1 * alpha + normal2 * beta + normal3 * gamma; 
                 interpolated_normal = interpolated_normal * interpolated_z; 
+
                 float len = std::sqrt(interpolated_normal.x * interpolated_normal.x +
                                          interpolated_normal.y * interpolated_normal.y +
                                          interpolated_normal.z * interpolated_normal.z);
                 if(len > 0.0001f)
                     interpolated_normal = interpolated_normal / len; 
 
-                Vector3 lightDirection(0,0,-1);
+                
                 float diffuse = max(DotProduct(interpolated_normal, lightDirection), 0.0f);
                 
                 uint8_t shade = (uint8_t)(min(diffuse, 1.0f) * 255.0f);
@@ -441,21 +456,22 @@ void Context::DrawFilledTriangle(Vector2 P1,Vector2 P2,Vector2 P3,float z1,float
                
                 int32_t index = y * window_width + x;
                 
-                if(interpolated_z < depthBuffer[index])
+                if(interpolated_inverse_z > depthBuffer[index])
                 {
                     //uint8_t r = (uint8_t)(255 * alpha + 0   * beta + 0   * gamma);
                     //uint8_t g = (uint8_t)(0   * alpha + 255 * beta + 0   * gamma);
                     //uint8_t b = (uint8_t)(0   * alpha + 0   * beta + 255 * gamma);
             
                     //color = 0xFF000000 | (r << 16) | (g << 8) | b; 
-                    depthBuffer[index] = interpolated_z;
+                    depthBuffer[index] = interpolated_inverse_z;
                     
                                         
                     //color = 0xFF000000
                     //                    | ((uint8_t)((interpolated_normal.x * 0.5f + 0.5f) * 255.0f) << 16)
                     //                    | ((uint8_t)((interpolated_normal.y * 0.5f + 0.5f) * 255.0f) << 8)
                     //                    |  (uint8_t)((interpolated_normal.z * 0.5f + 0.5f) * 255.0f);
-                    DrawPixel(x,y,color);
+                    //DrawPixel(x,y,color); 
+                    colorBuffer[index]  =  color; 
                 }
                 
             }
@@ -548,12 +564,12 @@ void Context::RenderModel(Model& model,float scale)
         
         // use back face culling here for better performance
    
-        Vector2 AB = B - A;
-        Vector2 AC = C - A;
-
-        float area = CrossProduct(AB,AC);
-        if(area <= 0)
-            continue;
+        //Vector2 AB = B - A;
+        //Vector2 AC = C - A;
+//
+        //float area = CrossProduct(AB,AC);
+        //if(area <= 0)
+        //    continue;
         
 
         DrawFilledTriangle(A, B, C,vertex1.z,vertex2.z,vertex3.z,normal1,normal2,normal3);
@@ -563,8 +579,8 @@ void Context::RenderModel(Model& model,float scale)
    
 }
 
-
-Vector2 Context::ProjectPoint(Vector3 point)
+/*
+Vector2 Context::ProjectPoint(Vector3& point)
 {
     Vector2 projectedPoint;
     
@@ -576,7 +592,7 @@ Vector2 Context::ProjectPoint(Vector3 point)
     
     return projectedPoint;
 }
-
+*/
 
 
 
