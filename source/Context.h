@@ -110,7 +110,7 @@ class Context
         projectedPoint.x = (point.x  * camera.focalLength) / point.z + window_halfWidth;
 
         // Negate it to match +y up from 3d space to +y in screen space otherwise image will be upside down
-        projectedPoint.y = -(point.y  * camera.focalLength) / point.z +window_halfWidth;
+        projectedPoint.y = -(point.y  * camera.focalLength) / point.z + window_halfWidth;
         
         return projectedPoint;
     }

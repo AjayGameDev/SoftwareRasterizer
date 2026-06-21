@@ -121,7 +121,7 @@ void Context::ProcessInput()
 void Context::Update(float dt)
 {
 
-    std::cout << "Delta time: " << static_cast<int>(1.0f/dt) << "\n";
+    std::cout << "\33[2KDelta time: " << static_cast<int>(1.0f/dt) << "\r"<<std::flush;
     rotationAngles.y   += input.deltaX * DegreeToRadians * dt; 
     rotationAngles.x   += input.deltaY * DegreeToRadians * dt; 
     camera.position.z  = input.targetDistance;
@@ -348,7 +348,6 @@ bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vec
 }
 
 
-
 void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,float z2,float z3,Vector3 normal1,Vector3 normal2,Vector3 normal3,uint32_t color) // Pineda's alogrithm
 {
 
@@ -387,9 +386,9 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
 
     
 
-     int32_t bias0 = IsTopLeftEdge(AB) ? 0 : -1; 
-     int32_t bias1 = IsTopLeftEdge(BC) ? 0 : -1; 
-     int32_t bias2 = IsTopLeftEdge(CA) ? 0 : -1; 
+    int32_t bias0 = IsTopLeftEdge(AB) ? 0 : -1; 
+    int32_t bias1 = IsTopLeftEdge(BC) ? 0 : -1; 
+    int32_t bias2 = IsTopLeftEdge(CA) ? 0 : -1; 
 
     float inverse_zA = 1.0f / z1;
     float inverse_zB = 1.0f / z2;
@@ -400,27 +399,46 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
     normal3 = normal3 * inverse_zC;
 
     Vector3 lightDirection(0,0,-1);
+    
+    Vector2_int32 Pmin(xmin * subpixelMultiplier + half ,ymin * subpixelMultiplier + half );
+     
+    Vector2_int32 APmin = Pmin - A;
+    Vector2_int32 BPmin = Pmin - B;
+    Vector2_int32 CPmin = Pmin - C; 
+    
+    int64_t w0_row_start = CrossProduct_int64(AB, APmin);
+    int64_t w1_row_start = CrossProduct_int64(BC, BPmin);
+    int64_t w2_row_start = CrossProduct_int64(CA, CPmin); 
 
+    int64_t delta_w0_x = (int64_t)(-AB.y) * subpixelMultiplier; 
+    int64_t delta_w1_x = (int64_t)(-BC.y) * subpixelMultiplier;
+    int64_t delta_w2_x = (int64_t)(-CA.y) * subpixelMultiplier;
+    
+    int64_t delta_w0_y = (int64_t)(AB.x) * subpixelMultiplier; 
+    int64_t delta_w1_y = (int64_t)(BC.x) * subpixelMultiplier;
+    int64_t delta_w2_y = (int64_t)(CA.x) * subpixelMultiplier;
 
     for (int32_t y = ymin; y <= ymax; y++)  // traversing all pixels inside the bounding box
     {
+        int64_t w0 = w0_row_start;
+        int64_t w1 = w1_row_start;
+        int64_t w2 = w2_row_start;
+
         for (int32_t x = xmin; x <= xmax; x++) 
         {
-            Vector2_int32 P(x * subpixelMultiplier + half ,y * subpixelMultiplier + half); 
+            //Vector2_int32 P(x * subpixelMultiplier + half ,y * subpixelMultiplier + half); 
 
-            Vector2_int32 AP = P - A; 
-            Vector2_int32 BP = P - B; 
-            Vector2_int32 CP = P - C; 
+            //Vector2_int32 AP = P - A; 
+            //Vector2_int32 BP = P - B; 
+            //Vector2_int32 CP = P - C; 
 
-            int64_t w0 = CrossProduct_int64(AB,AP);  // + bias0;
-            int64_t w1 = CrossProduct_int64(BC,BP);  // + bias1;
-            int64_t w2 = CrossProduct_int64(CA,CP);  // + bias2;  
+            //int64_t w0 = CrossProduct_int64(AB,AP);  // + bias0;
+            //int64_t w1 = CrossProduct_int64(BC,BP);  // + bias1;
+            //int64_t w2 = CrossProduct_int64(CA,CP);  // + bias2;  
 
+           
             
-            
-
-            
-
+            // bias is only used for top edge rule to know the owner of overlapping pixels, don't use it in calculation of alpha beta gamma
 
             if((w0+bias0) >= 0 && (w1+bias1) >= 0 && (w2+bias2) >= 0)
             {
@@ -442,11 +460,11 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
                 Vector3 interpolated_normal = normal1 * alpha + normal2 * beta + normal3 * gamma; 
                 interpolated_normal = interpolated_normal * interpolated_z; 
 
-                float len = std::sqrt(interpolated_normal.x * interpolated_normal.x +
-                                         interpolated_normal.y * interpolated_normal.y +
-                                         interpolated_normal.z * interpolated_normal.z);
-                if(len > 0.0001f)
-                    interpolated_normal = interpolated_normal / len; 
+                //float len = std::sqrt(interpolated_normal.x * interpolated_normal.x +
+                //                         interpolated_normal.y * interpolated_normal.y +
+                //                         interpolated_normal.z * interpolated_normal.z);
+                //if(len > 0.0001f)
+                //    interpolated_normal = interpolated_normal / len; 
 
                 
                 float diffuse = max(DotProduct(interpolated_normal, lightDirection), 0.0f);
@@ -475,7 +493,15 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
                 }
                 
             }
+
+            w0 += delta_w0_x;
+            w1 += delta_w1_x;
+            w2 += delta_w2_x;
         }
+
+        w0_row_start += delta_w0_y;
+        w1_row_start += delta_w1_y;
+        w2_row_start += delta_w2_y;
     }
 }
 
@@ -490,6 +516,7 @@ void Context::RenderModel(Model& model,float scale)
     //rotationAngles.x    = 180.0f  * DegreeToRadians;
  
     /*
+    
     for (int i = 0; i < model.vertices.size(); i++) 
     {
         Vector3 position = model.vertices[i].position; 
@@ -547,8 +574,9 @@ void Context::RenderModel(Model& model,float scale)
         vertex1.z -= camera.position.z;
         vertex2.z -= camera.position.z;
         vertex3.z -= camera.position.z;
+
         
-        if(vertex1.z <= camera.nearPlane || vertex2.z <= camera.nearPlane || vertex3.z <= camera.nearPlane)
+        if(vertex1.z <= camera.nearPlane || vertex2.z <= camera.nearPlane || vertex3.z <= camera.nearPlane) // fix later with clipping or something else
             continue;
 
         //Vector3 faceNormal = normal1 / 3.0f + normal2 / 3.0f + normal3 / 3.0f;
