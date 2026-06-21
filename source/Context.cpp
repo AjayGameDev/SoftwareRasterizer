@@ -460,11 +460,11 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
                 Vector3 interpolated_normal = normal1 * alpha + normal2 * beta + normal3 * gamma; 
                 interpolated_normal = interpolated_normal * interpolated_z; 
 
-                //float len = std::sqrt(interpolated_normal.x * interpolated_normal.x +
-                //                         interpolated_normal.y * interpolated_normal.y +
-                //                         interpolated_normal.z * interpolated_normal.z);
-                //if(len > 0.0001f)
-                //    interpolated_normal = interpolated_normal / len; 
+                float len = std::sqrt(interpolated_normal.x * interpolated_normal.x +
+                                         interpolated_normal.y * interpolated_normal.y +
+                                         interpolated_normal.z * interpolated_normal.z);
+                if(len > 0.0001f)
+                    interpolated_normal = interpolated_normal / len; 
 
                 
                 float diffuse = max(DotProduct(interpolated_normal, lightDirection), 0.0f);
