@@ -15,7 +15,10 @@
 
 constexpr  uint32_t  window_width                =   640 * 2;  
 constexpr  uint32_t  window_height               =   480 * 2;  
-constexpr  float     window_halfWidth            =   window_width / 2.0f; 
+constexpr  uint32_t  logical_width               =   64;
+constexpr  uint32_t  logical_height              =   48;
+constexpr  float     window_halfWidth            =   logical_width / 2.0f; 
+constexpr  float     window_halfHeight           =   logical_height / 2.0f; 
 constexpr  uint32_t  totalPoints                 =   9 * 9 * 9; 
 constexpr  float     projectedPointsScaleFactor  =   400;
 constexpr  int32_t   subpixelShift               =   4; 
@@ -110,7 +113,7 @@ class Context
         projectedPoint.x = (point.x  * camera.focalLength) / point.z + window_halfWidth;
 
         // Negate it to match +y up from 3d space to +y in screen space otherwise image will be upside down
-        projectedPoint.y = -(point.y  * camera.focalLength) / point.z + window_halfWidth;
+        projectedPoint.y = -(point.y  * camera.focalLength) / point.z + window_halfHeight;
         
         return projectedPoint;
     }

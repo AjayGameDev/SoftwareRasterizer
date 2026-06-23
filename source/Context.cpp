@@ -49,20 +49,20 @@ void Context::CreateRenderer()
     } 
 
     SDL_SetRenderVSync(renderer, 1); // to match the refresh rate of monitor
-    //if(!SDL_SetRenderLogicalPresentation(renderer, 320, 240,SDL_LOGICAL_PRESENTATION_LETTERBOX))
-    //{
-    //    std::cout << "/n Can't create different resolution of 320 x 240";
-    //}
+    if(!SDL_SetRenderLogicalPresentation(renderer, logical_width,logical_height,SDL_LOGICAL_PRESENTATION_LETTERBOX))
+    {
+        std::cout << "/n Can't create different resolution of 320 x 240";
+    }
     
 
 } 
 
 void Context::Initialize()
 {
-    colorBuffer = static_cast<uint32_t*>(std::malloc(sizeof(uint32_t) * window_width * window_height)); 
-    depthBuffer = static_cast<float*>(std::malloc(sizeof(float) * window_width * window_height));
+    colorBuffer = static_cast<uint32_t*>(std::malloc(sizeof(uint32_t) * logical_width * logical_height)); 
+    depthBuffer = static_cast<float*>(std::malloc(sizeof(float) * logical_width * logical_height));
 
-    colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, window_width, window_height);
+    colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, logical_width, logical_height);
 
     shotgun = std::make_unique<Model>(); 
     hands   = std::make_unique<Model>();
@@ -72,7 +72,7 @@ void Context::Initialize()
 
     camera.position = Vector3(0,0,-0.6f);
     camera.fov = 90 * DegreeToRadians; 
-    camera.focalLength = (window_width / 2.0f) / std::tan(camera.fov / 2.0f);  
+    camera.focalLength = (logical_width / 2.0f) / std::tan(camera.fov / 2.0f);  
     camera.nearPlane = 0.1f;
      
     input.targetDistance = camera.position.z; 
@@ -154,7 +154,7 @@ void Context::Render()
     //std::cout << "B: " << B.x << ", " << B.y << "\n";
     //std::cout << "C: " << C.x << ", " << C.y << "\n";
     
-    DrawGrid();
+    //DrawGrid();
     DrawFilledProjectedTriangle(A,B,C,0xFF0FFFFF);
     //DrawTriangle(A,B,C); 
     //DrawTriangle(A,C,P4); 
@@ -176,8 +176,8 @@ void Context::Render()
 
 void Context::DrawPixel(uint32_t x, uint32_t y, uint32_t color)
 {
-    if( x < window_width && y < window_height)
-        colorBuffer[y * window_width + x] = color;
+    if( x < logical_width && y < logical_height)
+        colorBuffer[y * logical_width + x] = color;
 }
 
 void Context::ClearColorBuffer(uint32_t color)
@@ -191,7 +191,7 @@ void Context::ClearColorBuffer(uint32_t color)
     //        //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
     //    }
     //} 
-    std::fill(colorBuffer,colorBuffer + window_width * window_height,color);
+    std::fill(colorBuffer,colorBuffer + logical_width * logical_height,color);
 }
 
 void Context::ClearDepthBuffer(float depthValue)
@@ -205,14 +205,14 @@ void Context::ClearDepthBuffer(float depthValue)
     //        //DrawPixel(x,y,color); // unneccessary check for all pixels 640x480 = ~307k checks
     //    }
     //}
-    std::fill(depthBuffer,depthBuffer + window_width * window_height,depthValue);
+    std::fill(depthBuffer,depthBuffer + logical_width * logical_height,depthValue);
 }
 
 void Context::DrawGrid()
 {
-    for (int y = 0; y < window_height; y++) 
+    for (int y = 0; y < logical_height; y++) 
     {
-        for (int x = 0; x < window_width; x++) 
+        for (int x = 0; x < logical_width; x++) 
         {
             //uint32_t index = width * y + x;
             if(x%30 == 0 || y%30 == 0)
@@ -224,9 +224,9 @@ void Context::DrawGrid()
 
 void Context::DrawGridOnly()
 {
-    for (int y = 0; y < window_height; y++) 
+    for (int y = 0; y < logical_height; y++) 
     {
-        for (int x = 0; x < window_width; x++) 
+        for (int x = 0; x < logical_width; x++) 
         {
             //uint32_t index = width * y + x;
             if(x%30 == 0 || y%30 == 0)
@@ -252,15 +252,15 @@ void Context::DrawRectangle(uint32_t rectX,uint32_t rectY,uint32_t rectWidth,uin
     else
         startingY = 0; 
 
-    if(startingX > window_width)    startingX = window_width;
-    if(startingY > window_height)   startingY = window_height;
+    if(startingX > logical_width)    startingX = logical_width;
+    if(startingY > logical_height)   startingY = logical_height;
     
 
     uint32_t endingX = startingX + rectWidth; 
     uint32_t endingY = startingY + rectHeight; 
 
-    if(endingX > window_width)    endingX = window_width;
-    if(endingY > window_height)   endingY = window_height;
+    if(endingX > logical_width)    endingX = logical_width;
+    if(endingY > logical_height)   endingY = logical_height;
     
     for (int y = startingY; y < endingY; y++) 
     {
@@ -311,7 +311,7 @@ void Context::DrawTriangle(Vector2 A,Vector2 B,Vector2 C)
 
 void Context::RenderColorBuffer()
 {
-    SDL_UpdateTexture(colorBufferTexture,nullptr,colorBuffer,static_cast<int>(window_width * sizeof(uint32_t)));
+    SDL_UpdateTexture(colorBufferTexture,nullptr,colorBuffer,static_cast<int>(logical_width * sizeof(uint32_t)));
     SDL_RenderTexture(renderer,colorBufferTexture,nullptr,nullptr);
 }
 
@@ -381,8 +381,8 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
 
     xmin = max(0,xmin);
     ymin = max(0,ymin);
-    xmax = min(xmax,window_width  - 1);
-    ymax = min(ymax,window_height - 1); 
+    xmax = min(xmax,logical_width  - 1);
+    ymax = min(ymax,logical_height - 1); 
 
     
 
@@ -472,7 +472,7 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
                 uint8_t shade = (uint8_t)(min(diffuse, 1.0f) * 255.0f);
                 color = 0xFF000000 | (shade << 16) | (shade << 8) | shade;
                
-                int32_t index = y * window_width + x;
+                int32_t index = y * logical_width + x;
                 
                 if(interpolated_inverse_z > depthBuffer[index])
                 {
@@ -515,8 +515,8 @@ void Context::DrawFilledProjectedTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint3
 
     xmin = max(0,xmin);
     ymin = max(0,ymin);
-    xmax = min(xmax,window_width - 1);
-    ymax = min(ymax,window_height - 1); 
+    xmax = min(xmax,logical_width - 1);
+    ymax = min(ymax,logical_height - 1); 
 
     Vector2 P1P2 = P2 - P1; 
     Vector2 P2P3 = P3 - P2; 
