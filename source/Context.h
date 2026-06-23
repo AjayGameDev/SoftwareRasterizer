@@ -15,8 +15,8 @@
 
 constexpr  uint32_t  window_width                =   640 * 2;  
 constexpr  uint32_t  window_height               =   480 * 2;  
-constexpr  uint32_t  logical_width               =   64;
-constexpr  uint32_t  logical_height              =   48;
+constexpr  uint32_t  logical_width               =   64 * 4;
+constexpr  uint32_t  logical_height              =   48 * 4;
 constexpr  float     window_halfWidth            =   logical_width / 2.0f; 
 constexpr  float     window_halfHeight           =   logical_height / 2.0f; 
 constexpr  uint32_t  totalPoints                 =   9 * 9 * 9; 

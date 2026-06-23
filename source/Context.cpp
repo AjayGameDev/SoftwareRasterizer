@@ -6,6 +6,8 @@
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_stdinc.h>
+#include <SDL3/SDL_surface.h>
+#include <SDL3/SDL_timer.h>
 #include <SDL3/SDL_video.h>
 
 #include <algorithm>
@@ -63,7 +65,7 @@ void Context::Initialize()
     depthBuffer = static_cast<float*>(std::malloc(sizeof(float) * logical_width * logical_height));
 
     colorBufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, logical_width, logical_height);
-
+    SDL_SetTextureScaleMode(colorBufferTexture, SDL_SCALEMODE_NEAREST);
     shotgun = std::make_unique<Model>(); 
     hands   = std::make_unique<Model>();
 
@@ -136,8 +138,8 @@ void Context::Render()
     //DrawLine(0, 0, 640*2, 480*2);
     //Vector2 A(window_width/2.0, window_height/2.0 - 100),B(window_width/2.0 - 100, window_height/2.0 + 100),C(window_width/2.0 + 100, window_height/2.0 + 100),P4(window_width/2.0 + 200,window_height/2.0 - 100);
     
-    Vector3 P1(0,  1,  2);   // top center
-    Vector3 P2(1,  -.5f, 2);   // bottom right  ← go right first (CW)
+    Vector3 P1( 0,   1,  2);   // top center
+    Vector3 P2( 1, -.5f, 2);   // bottom right  ← go right first (CW)
     Vector3 P3(-1, -.5f, 2);   // bottom left
     
     
@@ -154,19 +156,21 @@ void Context::Render()
     //std::cout << "B: " << B.x << ", " << B.y << "\n";
     //std::cout << "C: " << C.x << ", " << C.y << "\n";
     
-    //DrawGrid();
-    DrawFilledProjectedTriangle(A,B,C,0xFF0FFFFF);
     //DrawTriangle(A,B,C); 
     //DrawTriangle(A,C,P4); 
 
-    //
-    //if(shotgun)
-    //    RenderModel(*shotgun);
-    //if(hands)
-    //    RenderModel(*hands);
+    DrawGrid();
+    //DrawFilledProjectedTriangle(A,B,C,0xFF0FFFFF);
 
-    RenderColorBuffer(); // upload buffer data to final texture or gpu
-    SDL_RenderPresent(renderer); // preset data to the screen
+    if(shotgun)
+        RenderModel(*shotgun);
+    if(hands)
+        RenderModel(*hands);
+
+
+    // Disable for triangle fill animation
+    //RenderColorBuffer(); // upload buffer data to final texture or gpu
+    //SDL_RenderPresent(renderer); // preset data to the screen
     
     
 
@@ -215,7 +219,7 @@ void Context::DrawGrid()
         for (int x = 0; x < logical_width; x++) 
         {
             //uint32_t index = width * y + x;
-            if(x%30 == 0 || y%30 == 0)
+            if(x%1 == 0 || y%1 == 0)
                 DrawPixel(x,y,0xFF000000);//colorBuffer[index] = 0xFF000000;
             
         }
@@ -346,6 +350,17 @@ bool InsideTriangle(Vector2& P,Vector2& A,Vector2& B,Vector2& C,Vector2& AB, Vec
 
     
 }
+
+
+uint32_t HashColor(int x, int y)
+{
+    uint32_t h = x * 2246822519u ^ y * 3266489917u;  // mix x and y with prime multipliers
+    h ^= h >> 13;
+    h *= 2246822519u;
+    h ^= h >> 15;
+    return 0xFF000000 | (h & 0x00FFFFFF);  // force full alpha, random RGB
+}
+
 
 
 void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,float z2,float z3,Vector3 normal1,Vector3 normal2,Vector3 normal3,uint32_t color) // Pineda's alogrithm
@@ -489,7 +504,13 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
                     //                    | ((uint8_t)((interpolated_normal.y * 0.5f + 0.5f) * 255.0f) << 8)
                     //                    |  (uint8_t)((interpolated_normal.z * 0.5f + 0.5f) * 255.0f);
                     //DrawPixel(x,y,color); 
-                    colorBuffer[index]  =  color; 
+                    //colorBuffer[index]  =  color; 
+                    DrawPixel(x,y,color); 
+                
+                    RenderColorBuffer(); // upload buffer data to final texture or gpu
+                    SDL_RenderPresent(renderer); // preset data to the screen
+                    
+                    SDL_Delay(1);
                 }
                 
             }
@@ -503,7 +524,10 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
         w1_row_start += delta_w1_y;
         w2_row_start += delta_w2_y;
     }
+
+    
 }
+
 
 void Context::DrawFilledProjectedTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color)
 {
@@ -529,7 +553,14 @@ void Context::DrawFilledProjectedTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint3
             Vector2 P(x,y);
 
             if(InsideTriangle(P,P1,P2,P3,P1P2,P2P3,P3P1))
-                DrawPixel(x,y,color);
+            {
+                DrawPixel(x,y,HashColor(x, y)); 
+                
+                RenderColorBuffer(); // upload buffer data to final texture or gpu
+                SDL_RenderPresent(renderer); // preset data to the screen
+                
+                SDL_Delay(15);
+            }
         }
     }
 }
@@ -631,7 +662,7 @@ void Context::RenderModel(Model& model,float scale)
 
     }
 
-   
+   SDL_Delay(1000);
 }
 
 /*
