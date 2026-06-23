@@ -137,33 +137,33 @@ void Context::Render()
     //Vector2 A(window_width/2.0, window_height/2.0 - 100),B(window_width/2.0 - 100, window_height/2.0 + 100),C(window_width/2.0 + 100, window_height/2.0 + 100),P4(window_width/2.0 + 200,window_height/2.0 - 100);
     
     Vector3 P1(0,  1,  2);   // top center
-    Vector3 P2(1,  -1, 2);   // bottom right  ← go right first (CW)
-    Vector3 P3(-1, -1, 2);   // bottom left
-
+    Vector3 P2(1,  -.5f, 2);   // bottom right  ← go right first (CW)
+    Vector3 P3(-1, -.5f, 2);   // bottom left
+    
     
     float sinY = std::sin(rotationAngles.y);
     float cosY = std::cos(rotationAngles.y); 
-
+    
     //RotateAroundZ(P1,P2,P3,sinY,cosY);
-
+    
     Vector2 A = ProjectPoint(P1);
     Vector2 B = ProjectPoint(P2);
     Vector2 C = ProjectPoint(P3);
-
+    
     //std::cout << "A: " << A.x << ", " << A.y << "\n";
     //std::cout << "B: " << B.x << ", " << B.y << "\n";
     //std::cout << "C: " << C.x << ", " << C.y << "\n";
-
-    //DrawFilledTriangle(A,B,C,0xFF000000);
+    
+    DrawGrid();
+    DrawFilledProjectedTriangle(A,B,C,0xFF0FFFFF);
     //DrawTriangle(A,B,C); 
     //DrawTriangle(A,C,P4); 
 
-    DrawGrid();
-    
-    if(shotgun)
-        RenderModel(*shotgun);
-    if(hands)
-        RenderModel(*hands);
+    //
+    //if(shotgun)
+    //    RenderModel(*shotgun);
+    //if(hands)
+    //    RenderModel(*hands);
 
     RenderColorBuffer(); // upload buffer data to final texture or gpu
     SDL_RenderPresent(renderer); // preset data to the screen
@@ -505,7 +505,34 @@ void Context::DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,fl
     }
 }
 
+void Context::DrawFilledProjectedTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color)
+{
+    int xmin = min(P1.x,P2.x,P3.x); 
+    int ymin = min(P1.y,P2.y,P3.y); 
 
+    int xmax = max(P1.x,P2.x,P3.x);
+    int ymax = max(P1.y,P2.y,P3.y); 
+
+    xmin = max(0,xmin);
+    ymin = max(0,ymin);
+    xmax = min(xmax,window_width - 1);
+    ymax = min(ymax,window_height - 1); 
+
+    Vector2 P1P2 = P2 - P1; 
+    Vector2 P2P3 = P3 - P2; 
+    Vector2 P3P1 = P1 - P3;
+
+    for (int y = ymin; y <= ymax; y++) 
+    {
+        for (int x = xmin; x <= xmax; x++) 
+        {
+            Vector2 P(x,y);
+
+            if(InsideTriangle(P,P1,P2,P3,P1P2,P2P3,P3P1))
+                DrawPixel(x,y,color);
+        }
+    }
+}
 
 void Context::RenderModel(Model& model,float scale)
 {
@@ -592,12 +619,12 @@ void Context::RenderModel(Model& model,float scale)
         
         // use back face culling here for better performance
    
-        //Vector2 AB = B - A;
-        //Vector2 AC = C - A;
-//
-        //float area = CrossProduct(AB,AC);
-        //if(area <= 0)
-        //    continue;
+        Vector2 AB = B - A;
+        Vector2 AC = C - A;
+
+        float area = CrossProduct(AB,AC);
+        if(area <= 0)
+            continue;
         
 
         DrawFilledTriangle(A, B, C,vertex1.z,vertex2.z,vertex3.z,normal1,normal2,normal3);

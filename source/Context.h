@@ -81,7 +81,7 @@ class Context
     void DrawTriangle(int x1,int y1,int x2, int y2, int x3, int y3);
     void DrawTriangle(Vector2 P1,Vector2 P2,Vector2 P3);
     void DrawFilledTriangle(Vector2& P1,Vector2& P2,Vector2& P3,float z1,float z2,float z3,Vector3 normal1,Vector3 normal2,Vector3 normal3,uint32_t color = 0xFF00FFFF);
-    
+    void DrawFilledProjectedTriangle(Vector2 P1,Vector2 P2,Vector2 P3,uint32_t color = 0xFF00FFFF);
 
 
     void Render(); 
